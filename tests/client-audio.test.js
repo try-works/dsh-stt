@@ -16,10 +16,10 @@ import { pathToFileURL } from 'node:url'
 /** The bare minimum of React the factory touches at module scope. */
 const REACT_STUB = {
   Fragment: function Fragment() {},
-  createElement: () => null,
+  createElement: (type, props, ...children) => ({ type, props: props === null || props === undefined ? {} : props, children }),
   useEffect: () => {},
   useRef: () => ({ current: null }),
-  useState: () => [null, () => {}],
+  useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
 }
 
 /** Load the bundle the way the page loader does. */
@@ -41,7 +41,7 @@ async function loadBundle() {
 }
 
 const plugin = await loadBundle()
-const { SilenceGate, audioBase64, encodeWav, resample } = plugin.internals
+const { SilenceGate, VoiceActivity, audioBase64, encodeWav, microphoneHint, resample } = plugin.internals
 
 test('the bundle exports a cordis plugin that waits for the speech remote', () => {
   assert.equal(plugin.name, 'dsh-stt', 'cordis names the fiber from this')
@@ -66,6 +66,40 @@ test('apply shadows the shipped microphone at a lower priority', () => {
   assert.equal(seen[0].options.name, 'conversation.input.activity')
   assert.equal(seen[0].options.priority, -1, 'the shipped occupant registers at 0, so anything lower renders')
   assert.equal(typeof seen[0].component, 'function')
+})
+
+test('microphoneHint explains an unavailable microphone instead of staying silent', () => {
+  assert.match(microphoneHint(null, false, ''), /Connecting/)
+  assert.match(microphoneHint(null, false, 'boom'), /unavailable: boom/)
+  assert.equal(microphoneHint({}, true, ''), 'Dictate', 'a ready provider is just an invitation')
+  assert.match(microphoneHint({}, false, ''), /No model is ready/)
+})
+
+test('the microphone renders while the catalog is still unknown', () => {
+  const tree = VoiceActivity({
+    inputActions: { captureInsertion: () => ({}), insertText: () => true },
+    locked: false,
+    onActiveChange: () => {},
+    speech: undefined,
+  })
+  assert.ok(tree !== null && tree !== undefined, 'rendering must not throw with no speech Remote')
+  const button = tree.children[0]
+  assert.equal(button.type, 'button')
+  assert.match(button.props.title, /Connecting/)
+  assert.match(button.props['aria-label'], /Connecting/)
+})
+
+test('clicking an unavailable microphone answers rather than doing nothing', () => {
+  let expanded = null
+  const tree = VoiceActivity({
+    inputActions: { captureInsertion: () => ({}), insertText: () => true },
+    locked: false,
+    onActiveChange: (value) => { expanded = value },
+    speech: undefined,
+  })
+  const button = tree.children[0]
+  assert.doesNotThrow(() => { button.props.onClick() })
+  assert.equal(expanded, null, 'the click itself must not require the owner to react')
 })
 
 test('resample returns the input untouched when the rates already match', () => {

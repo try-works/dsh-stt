@@ -257,6 +257,25 @@ window.__ModuleLoader__.load({
       dot: { width: '7px', height: '7px', borderRadius: '4px', background: '#d9a13b', flex: '0 0 auto' },
     }
 
+    /**
+     * What the microphone will do, or why it cannot.
+     *
+     * A click must always answer: when nothing can start, this is the sentence the
+     * user gets, because a button that silently does nothing reads as broken.
+     *
+     * @param catalog - the speech catalog, or null while it is still unknown.
+     * @param ready - whether the selected provider can recognize right now.
+     * @param trouble - the last failure reading the catalog, if any.
+     * @returns the tooltip and the message a click should show.
+     */
+    function microphoneHint(catalog, ready, trouble) {
+      if (catalog === null) {
+        return trouble === '' ? 'Connecting to speech recognition\u2026' : 'Speech recognition is unavailable: ' + trouble
+      }
+      if (ready) return 'Dictate'
+      return 'No model is ready. Choose one in Settings, then Plugins, then Voice Input.'
+    }
+
     /** The microphone glyph, drawn here because no icon package is imported. */
     function MicrophoneIcon() {
       return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
@@ -282,33 +301,43 @@ window.__ModuleLoader__.load({
       const [message, setMessage] = React.useState('')
       const [pending, setPending] = React.useState('')
       const [level, setLevel] = React.useState(0)
+      const [trouble, setTrouble] = React.useState('')
       const active = React.useRef(null)
       const generation = React.useRef(0)
       const expanded = phase !== 'idle'
 
       React.useEffect(() => {
+        // Polled rather than streamed: catalog() is a plain Remote call whose transport
+        // the shipped half already proves, while an async-iterable subscription is one
+        // more shape to get wrong. Every failure is recorded, never swallowed - a
+        // silently dead microphone is indistinguishable from a broken one.
         let live = true
-        const controller = new AbortController()
-        const readOnce = async () => {
-          const result = await speech.catalog()
-          if (live && result.ok) setCatalog(result.value)
-        }
-        void readOnce().catch(() => {})
-        void (async () => {
-          while (live) {
-            try {
-              const stream = await speech.follow(controller.signal)
-              for await (const item of stream) {
-                if (!live) break
-                setCatalog(item.value)
-                item.accept()
-              }
-            } catch (error) { /* the stream ended; reconnected below */ }
-            if (!live) break
-            await new Promise((resolve) => { setTimeout(resolve, 2000) })
+        const refresh = async () => {
+          if (speech === undefined || typeof speech.catalog !== 'function') {
+            if (live) setTrouble('the speech Remote is not available to this plugin')
+            return
           }
-        })()
-        return () => { live = false; controller.abort() }
+          try {
+            const result = await speech.catalog()
+            if (!live) return
+            if (result !== null && result !== undefined && result.ok === true) {
+              setCatalog(result.value)
+              setTrouble('')
+              return
+            }
+            if (live) setTrouble(result !== null && result !== undefined && result.error !== undefined
+              ? String(result.error.message)
+              : 'the speech service refused the request')
+          } catch (error) {
+            if (!live) return
+            const message = error instanceof Error ? error.message : String(error)
+            setTrouble(message)
+            console.warn('[dsh-stt] could not read the speech catalog:', message)
+          }
+        }
+        void refresh()
+        const timer = setInterval(() => { void refresh() }, 2000)
+        return () => { live = false; clearInterval(timer) }
       }, [speech])
 
       const provider = catalog === null ? undefined : catalog.providers.find((item) => item.id === catalog.selection.providerId)
@@ -432,15 +461,21 @@ window.__ModuleLoader__.load({
       }, [props.sessionId])
 
       if (!expanded) {
+        // A click must always answer. When the microphone cannot start, saying why
+        // beats doing nothing: silence reads as a broken button.
+        const why = microphoneHint(catalog, ready, trouble)
         return h('span', { style: STYLE.anchor },
           h('button', {
             type: 'button',
             style: STYLE.mic,
             disabled: locked,
-            'aria-label': usable ? 'Start voice input' : 'Voice input is not set up yet',
+            'aria-label': usable ? 'Start voice input' : why,
             onMouseDown: (event) => { event.preventDefault() },
-            onClick: () => { if (usable) void start() },
-            title: usable ? 'Dictate' : 'Choose and download a model in Settings, then Plugins, then Voice Input',
+            onClick: () => {
+              if (usable) { void start(); return }
+              feedback(why)
+            },
+            title: why,
           }, h(MicrophoneIcon)))
       }
 
@@ -483,7 +518,6 @@ window.__ModuleLoader__.load({
       const actions = {
         transcribe: async (request, signal) => await ctx.remote.speech.transcribe(request, signal),
         prepare: async (providerId) => { await ctx.remote.speech.prepare(providerId) },
-        follow: async (signal) => await ctx.remote.speech.follow(signal),
         catalog: async () => await ctx.remote.speech.catalog(),
       }
       ctx.effect(() => ctx.slots.inject('conversation.input.activity', () => ctx.slots.register({
@@ -503,7 +537,7 @@ window.__ModuleLoader__.load({
      * shipped bundle, so it cannot be imported piecemeal. Cordis ignores members it
      * does not know.
      */
-    exports.internals = { SilenceGate, audioBase64, encodeWav, resample }
+    exports.internals = { SilenceGate, VoiceActivity, audioBase64, encodeWav, microphoneHint, resample }
     return module.exports
   },
 })
