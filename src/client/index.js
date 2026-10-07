@@ -95,6 +95,29 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * Reject rather than wait forever.
+     *
+     * Every await in the capture path crosses something that can stall without
+     * ever rejecting - a MediaRecorder that never fires onstop, an AudioContext
+     * that will not close - and a stalled promise here is a spinner that never
+     * ends, which is worse than an error message.
+     *
+     * @param promise - the work to bound.
+     * @param ms - the deadline in milliseconds.
+     * @param what - a phrase naming the work, used in the failure.
+     * @returns the promise's value.
+     */
+    function withDeadline(promise, ms, what) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { reject(new Error(what + ' timed out after ' + Math.round(ms / 1000) + 's.')) }, ms)
+        promise.then(
+          (value) => { clearTimeout(timer); resolve(value) },
+          (error) => { clearTimeout(timer); reject(error) },
+        )
+      })
+    }
+
+    /**
      * Decides when a recording has finished on its own.
      *
      * Push to talk, release by silence: one click starts it, and it ends `holdMs`
@@ -302,6 +325,8 @@ window.__ModuleLoader__.load({
       const [pending, setPending] = React.useState('')
       const [level, setLevel] = React.useState(0)
       const [trouble, setTrouble] = React.useState('')
+      const [elapsed, setElapsed] = React.useState(0)
+      const [stage, setStage] = React.useState('')
       const active = React.useRef(null)
       const generation = React.useRef(0)
       const expanded = phase !== 'idle'
@@ -352,6 +377,7 @@ window.__ModuleLoader__.load({
         active.current = null
         if (current !== null) {
           clearInterval(current.ticker)
+          clearInterval(current.clock)
           current.abort.abort()
           void current.recording.dispose()
         }
@@ -360,7 +386,7 @@ window.__ModuleLoader__.load({
       const cancel = () => {
         generation.current += 1
         release()
-        setPending(''); setMessage(''); setLevel(0); setPhase('idle')
+        setPending(''); setMessage(''); setLevel(0); setPhase('idle'); setStage(''); setElapsed(0)
       }
 
       const feedback = (text) => { setMessage(text); setPhase('feedback') }
@@ -373,20 +399,41 @@ window.__ModuleLoader__.load({
         clearInterval(current.ticker)
         setLevel(0)
         setPhase('transcribing')
+        setStage('Encoding audio\u2026')
+        setElapsed(0)
+        const began = Date.now()
+        current.clock = setInterval(() => { setElapsed(Math.round((Date.now() - began) / 1000)) }, 250)
         try {
-          const audio = await current.recording.stop()
+          const audio = await withDeadline(current.recording.stop(), 20000, 'Encoding the recording')
           if (run !== generation.current) return
           if (audio.byteLength > current.maxAudioBytes) { feedback('That recording is too long to send.'); return }
-          const result = await speech.transcribe({
+          setStage('Transcribing\u2026')
+          console.info('[dsh-stt] sending ' + ((audio.byteLength - 44) / 32000).toFixed(1) + 's of audio to ' + current.selection.providerId)
+          const answered = await speech.transcribe({
             audioBase64: audioBase64(audio),
             providerId: current.selection.providerId,
             language: current.selection.language,
           }, current.abort.signal)
           if (run !== generation.current) return
-          if (!result.ok) { feedback('Speech recognition failed: ' + result.error.message); return }
-          if (result.value.text === '') { feedback('No speech recognized.'); return }
-          if (!inputActions.insertText(result.value.text, current.span)) {
-            setPending(result.value.text)
+          // A Remote answers { ok, value } | { ok, error }; anything else is a shape we
+          // do not understand and must say so rather than throw on a missing member.
+          const shaped = answered !== null && answered !== undefined && typeof answered.ok === 'boolean'
+          if (!shaped) {
+            console.warn('[dsh-stt] unexpected transcribe response:', answered)
+            feedback('Speech recognition returned an unexpected response.')
+            return
+          }
+          if (!answered.ok) {
+            const why = answered.error !== null && answered.error !== undefined && answered.error.message !== undefined
+              ? String(answered.error.message)
+              : 'the service refused the request'
+            feedback('Speech recognition failed: ' + why)
+            return
+          }
+          const text = answered.value !== null && answered.value !== undefined && typeof answered.value.text === 'string' ? answered.value.text : ''
+          if (text === '') { feedback('No speech recognized.'); return }
+          if (!inputActions.insertText(text, current.span)) {
+            setPending(text)
             feedback('The draft changed while recording.')
             return
           }
@@ -395,6 +442,7 @@ window.__ModuleLoader__.load({
           await current.recording.dispose()
           if (run === generation.current) feedback(failure instanceof Error ? failure.message : String(failure))
         } finally {
+          clearInterval(current.clock)
           if (run === generation.current) active.current = null
         }
       }
@@ -420,9 +468,10 @@ window.__ModuleLoader__.load({
           gate: new SilenceGate({ maxMs: catalog.maxDurationSeconds * 1000 }),
           phase: 'requesting',
           ticker: null,
+          clock: null,
         }
         active.current = current
-        setMessage(''); setPending(''); setLevel(0); setPhase('requesting')
+        setMessage(''); setPending(''); setLevel(0); setPhase('requesting'); setStage(''); setElapsed(0)
         // Load the recognizer now, while the user is still speaking, so the wait
         // happens behind the recording instead of after it.
         void speech.prepare(current.selection.providerId).catch(() => {})
@@ -491,7 +540,7 @@ window.__ModuleLoader__.load({
             h('span', { style: STYLE.status, role: 'status', title: pending || message },
               phase === 'feedback' ? message
                 : phase === 'requesting' ? 'Starting\u2026'
-                  : 'Transcribing\u2026'),
+                  : (stage === '' ? 'Transcribing\u2026' : stage) + (elapsed > 2 ? ' ' + elapsed + 's' : '')),
             phase === 'feedback' && pending
               ? h('button', { type: 'button', style: STYLE.action, onClick: () => {
                 if (inputActions.insertText(pending, inputActions.captureInsertion())) { setPending(''); setPhase('idle') }
@@ -541,7 +590,7 @@ window.__ModuleLoader__.load({
      * shipped bundle, so it cannot be imported piecemeal. Cordis ignores members it
      * does not know.
      */
-    exports.internals = { SilenceGate, VoiceActivity, audioBase64, encodeWav, microphoneHint, resample }
+    exports.internals = { SilenceGate, VoiceActivity, audioBase64, encodeWav, microphoneHint, resample, withDeadline }
     return module.exports
   },
 })

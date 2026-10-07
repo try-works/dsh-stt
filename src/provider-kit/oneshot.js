@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+
 /**
  * Write one recording to a private scratch directory.
  * @param audio - canonical 16 kHz mono PCM16 WAV bytes.
@@ -86,6 +87,10 @@ export function createOneShotProvider({ spec, config, preparation, logger, timeo
       try {
         const shared = { modelRoot, wavPath: staged.path, directory: staged.directory, audio: input.audio, language: input.language, config }
         const invocations = typeof spec.plan === 'function' ? spec.plan(shared) : [spec.command(shared)]
+        // Sequential on purpose. Running the segments concurrently looks free - each is
+        // its own process - but measured 176 s against 25 s for the same 120 s recording:
+        // every engine starts its own worker threads, and three of them at once thrash.
+        // Do not parallelize this without pinning --threads and measuring again.
         const parts = []
         for (const invocation of invocations) {
           const result = await runCommand({ ...invocation, timeoutMs, signal })

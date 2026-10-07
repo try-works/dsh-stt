@@ -41,7 +41,7 @@ async function loadBundle() {
 }
 
 const plugin = await loadBundle()
-const { SilenceGate, VoiceActivity, audioBase64, encodeWav, microphoneHint, resample } = plugin.internals
+const { SilenceGate, VoiceActivity, audioBase64, encodeWav, microphoneHint, resample, withDeadline } = plugin.internals
 
 test('the bundle exports a cordis plugin that waits for the speech remote', () => {
   assert.equal(plugin.name, 'dsh-stt', 'cordis names the fiber from this')
@@ -101,6 +101,19 @@ test('clicking an unavailable microphone answers rather than doing nothing', () 
   const button = tree.children[0]
   assert.doesNotThrow(() => { button.props.onClick() })
   assert.equal(expanded, null, 'the click itself must not require the owner to react')
+})
+
+test('withDeadline rejects a wait that never ends', async () => {
+  const stalled = new Promise(() => {})
+  await assert.rejects(() => withDeadline(stalled, 30, 'Encoding the recording'), /Encoding the recording timed out/)
+})
+
+test('withDeadline passes through a result that arrives in time', async () => {
+  assert.equal(await withDeadline(Promise.resolve('done'), 1000, 'x'), 'done')
+})
+
+test('withDeadline forwards the original failure rather than the deadline', async () => {
+  await assert.rejects(() => withDeadline(Promise.reject(new Error('microphone gone')), 1000, 'x'), /microphone gone/)
 })
 
 test('resample returns the input untouched when the rates already match', () => {
