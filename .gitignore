@@ -1,0 +1,17 @@
+# Installed dependencies
+node_modules/
+
+# Local scratch: ~114 MB of downloaded model binaries, probe scripts and fixtures.
+# Nothing here belongs to the package, and the test suites skip cleanly without it.
+_scratch/
+
+# Logs from `dsh plugin add`
+_install.log
+
+# Profile backups, if one is ever written beside the manifests
+*.bak-*
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+*.swp

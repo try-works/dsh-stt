@@ -1,0 +1,40 @@
+# dsh-stt bundle patch - a RIDER on @deepseek-ai/dsh-experimental-voice-input-bundle (see PROPOSAL.md D3).
+#
+# The shipped voice bundle already inserts the seam rows (speech-to-text, speech-to-text-sensevoice,
+# api-speech-to-text, ui-voice-input). This layer therefore does exactly two things:
+#   1. point the shared registry at our default model,
+#   2. contribute our providers through one row.
+#
+# ORDERING: this bundle must appear AFTER the voice bundle in dsh.profile.bundles, because layers
+# apply in list order and a later layer wins for a given row id.
+
+# 1. Select our default recognizer. A patch replaces a row's ENTIRE config, so `language` is
+#    restated explicitly rather than inherited.
+- id: speech-to-text
+  config:
+    defaultProvider: whistle-local
+    language: auto
+
+# 2. The real SenseVoice provider is switched off; our placeholder occupies its name in the picker
+#    as 'coming soon' (D13). Delete this row to hand over to the real implementation later.
+- id: speech-to-text-sensevoice
+  disabled: true
+
+# 3. Our providers. One row; each model is a key under `providers`.
+- insert:
+    - id: dsh-stt
+      # MUST equal package.json `name`: this is the specifier the loader imports,
+      # and a mismatch surfaces only as "failed to import" at profile startup.
+      name: '@try-works/dsh-stt'
+      config:
+        dataRoot: !!js dshHomePath('speech-to-text', 'dsh-stt')
+        # `defaultProvider` lives on the speech-to-text row above - one source of truth.
+        providers:
+          whistle-local:
+            enabled: true
+          voz-local:
+            enabled: true
+            # 390 MB is fetched only if the user chooses Voz in the picker (D12)
+          sensevoice-local:
+            enabled: true
+            # placeholder only: advertises, never downloads (D13)
