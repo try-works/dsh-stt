@@ -494,6 +494,8 @@ window.__ModuleLoader__.load({
       }, VoiceActivity)))
     }
 
+    // Both installed precedents set this; Cordis uses it to name the fiber's logger.
+    exports.name = 'dsh-stt'
     exports.apply = apply
     exports.inject = inject
     /**

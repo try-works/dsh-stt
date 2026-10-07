@@ -44,6 +44,7 @@ const plugin = await loadBundle()
 const { SilenceGate, audioBase64, encodeWav, resample } = plugin.internals
 
 test('the bundle exports a cordis plugin that waits for the speech remote', () => {
+  assert.equal(plugin.name, 'dsh-stt', 'cordis names the fiber from this')
   assert.equal(typeof plugin.apply, 'function')
   assert.ok(Array.isArray(plugin.inject))
   assert.ok(plugin.inject.includes('slots'), 'the slot registry is required')
