@@ -1,6 +1,6 @@
 {
   "name": "@try-works/dsh-stt",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Multi-model local speech-to-text for the DSH Web composer: Whistle and Voz, user-selectable, with lazy per-model download. Ships as a DSH bundle.",
   "type": "module",
   "main": "./src/index.js",
@@ -50,5 +50,13 @@
     "@deepseek-ai/schemastery": "^3.18.3",
     "@desert-ant-labs/voz": "3.6.0",
     "onnxruntime-node": "^1.30.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/try-works/dsh-stt.git"
+  },
+  "homepage": "https://github.com/try-works/dsh-stt#readme",
+  "bugs": {
+    "url": "https://github.com/try-works/dsh-stt/issues"
   }
 }

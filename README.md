@@ -2,6 +2,8 @@
 
 Multi-model local speech recognition for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web composer.
 
+Source and issues: [github.com/try-works/dsh-stt](https://github.com/try-works/dsh-stt).
+
 A microphone appears between the model selector and Send. Record, stop, and the transcript is inserted into
 the draft for review. **You choose which on-device model transcribes**, and nothing is downloaded until you
 choose it.
