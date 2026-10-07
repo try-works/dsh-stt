@@ -27,11 +27,15 @@ export * from './spec.js'
 export function createVozProvider(config = {}, options = {}) {
   const logger = options.logger
   const spec = createSpec(config)
+  // The engine is created after the preparation that warms it, so the warm step
+  // reads the engine through this holder rather than capturing it directly.
+  let engine = null
   const preparation = createPreparation({
     assets: (source) => spec.assets(source),
+    warm: async () => { await engine?.warm() },
     logger,
   })
-  const engine = createWorkerProvider({
+  engine = createWorkerProvider({
     spec,
     config,
     preparation,

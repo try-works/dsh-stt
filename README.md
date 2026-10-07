@@ -4,9 +4,12 @@ Multi-model local speech recognition for the [DeepSeek Harness](https://github.c
 
 Source and issues: [github.com/try-works/dsh-stt](https://github.com/try-works/dsh-stt).
 
-A microphone appears between the model selector and Send. Record, stop, and the transcript is inserted into
-the draft for review. **You choose which on-device model transcribes**, and nothing is downloaded until you
-choose it.
+A microphone appears between the model selector and Send. **Click once and start talking** — the recording
+ends on its own about a second after you stop speaking, and the transcript is inserted into the draft for
+review. **You choose which on-device model transcribes**, and nothing is downloaded until you choose it.
+
+The recognizer is loaded when you *start* recording, not when you finish, so the wait happens behind your
+own voice instead of after it.
 
 ## Models
 
@@ -60,6 +63,16 @@ providers:
 | `name` | override the display name shown in the picker |
 
 `dataRoot` is required and must be an absolute path.
+
+## How the recording ends
+
+A silence gate watches the microphone level. Nothing stops until it has heard **300 ms of speech**, so a
+cough or a door cannot end a recording before you have said anything; after that, **1.2 s of quiet** ends
+it. The Stop button is still there, and Escape or switching away cancels and discards.
+
+Because this needs the microphone level, the plugin ships its own browser half and registers it into the
+composer slot at a lower priority than the shipped microphone, which therefore stops rendering. That is
+also why the wait disappears: the same half asks the host to load the model the moment recording starts.
 
 ## Architecture
 

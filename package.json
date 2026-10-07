@@ -1,11 +1,12 @@
 {
   "name": "@try-works/dsh-stt",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Multi-model local speech-to-text for the DSH Web composer: Whistle and Voz, user-selectable, with lazy per-model download. Ships as a DSH bundle.",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
+    "./client": "./src/client/index.js",
     "./src/*": "./src/*",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
@@ -41,6 +42,13 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-experimental-client-ui-voice-input"
+      ],
+      "external": []
     }
   },
   "scripts": {

@@ -119,6 +119,8 @@ class Worker {
 export function createWorkerProvider({ spec, config, preparation, logger, timeoutMs, idleTimeoutMs }) {
   let idle = null
   let chain = Promise.resolve()
+  /** True once the child holds a loaded model, not merely a running process. */
+  let resident = false
   const worker = new Worker({
     entry: spec.workerEntry,
     env: spec.workerEnv(config),
@@ -126,6 +128,7 @@ export function createWorkerProvider({ spec, config, preparation, logger, timeou
     onExit: () => {
       clearTimeout(idle)
       idle = null
+      resident = false
       preparation.markCold()
     },
   })
@@ -149,11 +152,12 @@ export function createWorkerProvider({ spec, config, preparation, logger, timeou
       // Serialize: the engine holds one process-global model.
       const run = chain.then(async () => {
         signal.throwIfAborted()
-        if (worker.child === null) preparation.markWaking()
+        if (!resident) preparation.markWaking()
         await worker.start()
         touch()
         const result = await worker.send('transcribe', { wavPath, language: input.language }, timeoutMs)
         // 'ready' means the model is loaded, not merely that the process is up.
+        resident = true
         preparation.markReady()
         return result
       })
@@ -170,6 +174,30 @@ export function createWorkerProvider({ spec, config, preparation, logger, timeou
         touch()
       }
     },
+    /**
+     * Load the recognizer now instead of on the next request.
+     *
+     * A caller invokes this when the user starts speaking, so the seconds a cold model
+     * costs are spent while audio is still being captured rather than after the
+     * recording has already finished.
+     *
+     * @returns after the model is resident, or immediately if it already is.
+     */
+    async warm() {
+      if (worker.child !== null && resident) return
+      const load = chain.then(async () => {
+        await worker.start()
+        touch()
+        if (resident) return
+        await worker.send('load', {}, timeoutMs)
+        resident = true
+        preparation.markReady()
+        touch()
+      })
+      chain = load.then(() => {}, () => {})
+      await load
+    },
+
     /** Release the child; the provider is being unregistered. */
     dispose() {
       clearTimeout(idle)

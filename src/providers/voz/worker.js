@@ -10,6 +10,7 @@
  * Protocol, JSON lines on stdio (see provider-kit/worker.js):
  *
  *     -> {"event":"started"}                                  once, before any load
+ *     <- {"id":1,"op":"load"}                                 load only, no audio
  *     <- {"id":1,"op":"transcribe","wavPath":"C:\\...\\input.wav","language":"en"}
  *     -> {"id":1,"ok":true,"text":"...","audioSeconds":7.62}
  *     -> {"id":1,"ok":false,"error":"..."}
@@ -144,12 +145,18 @@ async function handle(line) {
     process.stderr.write('voz: ignored a non-JSON line\n')
     return
   }
-  if (message === null || typeof message !== 'object' || message.op !== 'transcribe') {
+  if (message === null || typeof message !== 'object' || (message.op !== 'transcribe' && message.op !== 'load')) {
     reply({ id: message?.id, ok: false, error: `unsupported op ${String(message?.op)}` })
     return
   }
   try {
     const voz = await recognize()
+    // 'load' pays the model cost with no audio, so a caller can start it while the
+    // user is still speaking and the wait never lands after the recording.
+    if (message.op === 'load') {
+      reply({ id: message.id, ok: true })
+      return
+    }
     // 'language' is deliberately unused: Voz's transcribe() takes no language,
     // because the bundle is multilingual and picks one itself. The picker's list
     // of 25 codes is where the hint is enforced, and there is no 'auto' there.
