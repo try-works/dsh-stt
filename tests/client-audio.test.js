@@ -48,6 +48,7 @@ test('the bundle exports a cordis plugin that waits for the speech remote', () =
   assert.equal(typeof plugin.apply, 'function')
   assert.ok(Array.isArray(plugin.inject))
   assert.ok(plugin.inject.includes('slots'), 'the slot registry is required')
+  assert.ok(plugin.inject.includes('remote'), 'the parent service must be declared, or ctx.remote throws')
   assert.ok(plugin.inject.includes('remote.speech'), 'wait for the generated speech Remote')
 })
 

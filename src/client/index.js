@@ -503,11 +503,15 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * Services this half waits for. 'remote.speech' is the generated Remote the
-     * shipped voice bundle mounts, so naming it here means Cordis will not call
-     * apply until that Remote exists.
+     * Services this half waits for.
+     *
+     * 'remote' MUST be named alongside 'remote.speech': Cordis gates every property
+     * access on the inject face, so reading ctx.remote to reach the nested speech
+     * namespace throws `cannot get property "remote" without inject` unless the
+     * parent service is declared too. Naming both also makes Cordis wait until the
+     * generated speech Remote the shipped voice bundle mounts actually exists.
      */
-    const inject = ['slots', 'remote.speech']
+    const inject = ['slots', 'remote', 'remote.speech']
 
     /**
      * Register the composer activity, shadowing the shipped microphone.

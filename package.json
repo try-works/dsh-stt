@@ -1,6 +1,6 @@
 {
   "name": "@try-works/dsh-stt",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Multi-model local speech-to-text for the DSH Web composer: Whistle and Voz, user-selectable, with lazy per-model download. Ships as a DSH bundle.",
   "type": "module",
   "main": "./src/index.js",
