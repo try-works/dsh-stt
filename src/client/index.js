@@ -262,7 +262,15 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** Inline styles: the bundle is one file and cannot import a stylesheet. */
+    /**
+     * Inline styles: the bundle is one file and cannot import a stylesheet.
+     *
+     * ACTIVE is the one accent the recording UI uses. It is deliberately green and
+     * not the red a stop control usually carries: red reads as a failure state, and
+     * stopping a recording is the expected, healthy thing to do. #2e9e57 is dark
+     * enough that the white stop glyph on it clears 3:1.
+     */
+    const ACTIVE = '#2e9e57'
     const STYLE = {
       anchor: { display: 'inline-flex', alignItems: 'center' },
       row: { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 },
@@ -271,10 +279,10 @@ window.__ModuleLoader__.load({
         width: '28px', height: '28px', padding: 0, borderRadius: '14px',
         border: '1px solid #3a4048', background: 'transparent', color: 'inherit', cursor: 'pointer',
       },
-      stop: { borderColor: '#e5484d', background: '#e5484d', color: '#fff' },
+      stop: { borderColor: ACTIVE, background: ACTIVE, color: '#fff' },
       mic: { border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', padding: '4px' },
       bar: { position: 'relative', width: '86px', height: '6px', borderRadius: '3px', background: '#2d323a', overflow: 'hidden' },
-      fill: { position: 'absolute', inset: '0 auto 0 0', background: '#e5484d', borderRadius: '3px', transition: 'width 80ms linear' },
+      fill: { position: 'absolute', inset: '0 auto 0 0', background: ACTIVE, borderRadius: '3px', transition: 'width 80ms linear' },
       status: { fontSize: '12px', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
       action: { fontSize: '12px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #3a4048', background: 'transparent', color: 'inherit', cursor: 'pointer' },
       dot: { width: '7px', height: '7px', borderRadius: '4px', background: '#d9a13b', flex: '0 0 auto' },
