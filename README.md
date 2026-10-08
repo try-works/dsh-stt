@@ -8,6 +8,8 @@ A microphone appears between the model selector and Send. **Click once and start
 ends on its own about a second after you stop speaking, and the transcript is inserted into the draft for
 review. **You choose which on-device model transcribes**, and nothing is downloaded until you choose it.
 
+<img width="769" height="108" alt="image" src="https://github.com/user-attachments/assets/a0012e0f-7193-4135-99ba-88adda783262" />
+
 The recognizer is loaded when you *start* recording, not when you finish, so the wait happens behind your
 own voice instead of after it.
 
