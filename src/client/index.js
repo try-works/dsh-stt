@@ -273,7 +273,12 @@ window.__ModuleLoader__.load({
     const ACTIVE = '#2e9e57'
     const STYLE = {
       anchor: { display: 'inline-flex', alignItems: 'center' },
-      row: { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 },
+      // Right-aligned, so the stop control lands where the microphone was. The shipped
+      // InputBar gives this slot 'flex: 1' while it is active (activityExpanded in
+      // InputBar.module.css), so the row fills the width and packs its children from
+      // whichever edge is set here. Anchoring to the end keeps the pointer still:
+      // start and stop are the same click, in the same place.
+      row: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', minWidth: 0 },
       button: {
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: '28px', height: '28px', padding: 0, borderRadius: '14px',
@@ -283,7 +288,9 @@ window.__ModuleLoader__.load({
       mic: { border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', padding: '4px' },
       bar: { position: 'relative', width: '86px', height: '6px', borderRadius: '3px', background: '#2d323a', overflow: 'hidden' },
       fill: { position: 'absolute', inset: '0 auto 0 0', background: ACTIVE, borderRadius: '3px', transition: 'width 80ms linear' },
-      status: { fontSize: '12px', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+      // Shrinkable, so a long status ellipsizes instead of shouldering the stop button
+      // out of position. minWidth 0 is what actually lets a flex child shrink.
+      status: { flex: '0 1 auto', minWidth: 0, fontSize: '12px', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
       action: { fontSize: '12px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #3a4048', background: 'transparent', color: 'inherit', cursor: 'pointer' },
       // The activity dot. Green rather than amber, which read as a warning, and
       // rather than a fixed black, which would vanish in a dark theme: the UI
