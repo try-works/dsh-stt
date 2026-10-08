@@ -285,7 +285,12 @@ window.__ModuleLoader__.load({
       fill: { position: 'absolute', inset: '0 auto 0 0', background: ACTIVE, borderRadius: '3px', transition: 'width 80ms linear' },
       status: { fontSize: '12px', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
       action: { fontSize: '12px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #3a4048', background: 'transparent', color: 'inherit', cursor: 'pointer' },
-      dot: { width: '7px', height: '7px', borderRadius: '4px', background: '#d9a13b', flex: '0 0 auto' },
+      // The activity dot. Green rather than amber, which read as a warning, and
+      // rather than a fixed black, which would vanish in a dark theme: the UI
+      // inherits its text colour, so a neutral dot has to be currentColor, not
+      // a colour literal. It only ever shows while starting or transcribing, never
+      // beside the recording controls, so it cannot be confused with the accent.
+      dot: { width: '7px', height: '7px', borderRadius: '4px', background: ACTIVE, flex: '0 0 auto' },
     }
 
     /**
